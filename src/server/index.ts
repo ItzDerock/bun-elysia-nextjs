@@ -1,20 +1,19 @@
 import Elysia from "elysia";
 import { initialize } from "next/dist/server/lib/router-server";
 import { IncomingMessage, ServerResponse } from "http";
+import api from "./routes";
 
 // Initialize the server
-const app = new Elysia();
+const app = new Elysia().use(api);
+export type API = typeof app;
 
 // Initialize the next server
-const [
-  handle,
-  handleUpgrade
-] = await initialize({
+const [handle, handleUpgrade] = await initialize({
   dev: process.env.NODE_ENV !== "production",
   port: parseInt(process.env.PORT ?? "3000"),
   dir: process.cwd(),
   isNodeDebugging: process.env.NODE_DEBUG === "true",
-  customServer: true
+  customServer: true,
 });
 
 // required globals for translating Bun API to Node
@@ -48,17 +47,21 @@ const handleBun = (req: Request) => {
     // render the page
     handle(http_req, http_res);
   });
-}
+};
 
-app.onRequest(async ctx => {
-  // you can add your own guards here to define what routes next.js should handle
+app.onRequest(async (ctx) => {
+  const path = new URL(ctx.request.url);
+  if (path.pathname.startsWith("/api")) return;
   return await handleBun(ctx.request);
 });
 
 // start the server
-app.listen({
-  port: parseInt(process.env.PORT ?? "3000"),
-  hostname: process.env.HOSTNAME ?? "0.0.0.0",
-}, data => {
-  console.log(`Server started on http://${data.hostname}:${data.port}`);
-})
+app.listen(
+  {
+    port: parseInt(process.env.PORT ?? "3000"),
+    hostname: process.env.HOSTNAME ?? "0.0.0.0",
+  },
+  (data) => {
+    console.log(`Server started on http://${data.hostname}:${data.port}`);
+  }
+);
